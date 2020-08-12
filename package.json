@@ -1,0 +1,19 @@
+{
+  "name": "tool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "zenoe",
+  "license": "ISC",
+  "dependencies": {
+    "line-reader": "^0.4.0",
+    "mkdirp": "^1.0.4"
+  },
+  "devDependencies": {
+    "eslint": "^7.5.0",
+    "mkdir": "0.0.2"
+  }
+}
