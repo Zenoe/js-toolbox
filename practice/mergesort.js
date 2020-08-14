@@ -1,5 +1,7 @@
 const commonfun = require('../common/commonfun');
 
+// avoid randomly naming variables
+// any variable name should be meanfull
 function mergesort(a, l, h) {
   if(l >= h){
     return;
@@ -18,7 +20,7 @@ function combine(a, l, m, h) {
   let k=l;
   while(i < a1.length && j < a2.length){
     // ops: a1, a2 is brand new array, should start with index 0, dont confuse with the origianl array a
-    // causioin: variables' name are ambiguous
+    // caution: variables' name are ambiguous
     // if(a1[l+i] < a2[m+1+j]){
     if(a1[i] < a2[j]){
       // a[k++] = a[l+i]
@@ -45,7 +47,7 @@ function combine(a, l, m, h) {
 const sortfun = mergesort
 
 const len = 18;
-const arr = commonfun.randomIntDataSet(len, 1,19)
+const arr = commonfun.randomIntDataSet(len, 1,100)
 console.log(arr);
 
 sortfun(arr, 0, len-1)
