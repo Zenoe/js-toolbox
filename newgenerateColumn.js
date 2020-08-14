@@ -49,8 +49,10 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
       const ancestors = [];
       if(length === 2){
         const json = {};
-        const nameCn = lineArray[0];
-        json['text'] = nameCn;
+
+        // subkey
+        const nameCn = `${lineArray[0]}|${lineArray[1]}`;
+        json['text'] = lineArray[0];
         // json['name'] = lineArray[1];
 
         console.log('key, nameCn:', keyName, nameCn);

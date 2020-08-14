@@ -34,6 +34,12 @@ module.exports = {
 
   isString: function(str){return typeof(exp) === 'string' || exp instanceof String},
 
+  randomIntDataSet: function(dataSetSize, minValue, maxValue) {
+    return new Array(dataSetSize).fill(0).map(function(n) {
+      return Math.floor(Math.random() * (maxValue - minValue) + minValue);
+    });
+  },
+
   isJustAObj: function(obj){
     return !!obj && obj === Object(obj) && Object.prototype.toString.call(obj) !== '[object Array]'
   },

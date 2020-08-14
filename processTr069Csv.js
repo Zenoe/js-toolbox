@@ -14,7 +14,6 @@ fs.readFile(filename || './csv/rrm.csv', function(err, data) {
   let key;
   const paramObj = {};
   array.forEach((it, idx)=>{
-    console.log('............', idx);
     const trimline = it.trim();
     if(!trimline.startsWith('#') && trimline.length !== 0){
       const lineArray = trimline.split('\t');
@@ -22,8 +21,9 @@ fs.readFile(filename || './csv/rrm.csv', function(err, data) {
       const firstElement = lineArray[0].trim()
 
       if(!firstElement.startsWith("Device.")){
-      // if(length === 7 ){
+        // Lines start with say 'NR测量对象设置' that is the key
         // the first column is module'name
+      // if(length === 7 ){
         key = lineArray[0].trim()
         console.log('key:', key);
         if(paramObj[key] === undefined)
@@ -44,9 +44,10 @@ fs.readFile(filename || './csv/rrm.csv', function(err, data) {
 
 function line2Obj(lineArray) {
   if(Array.isArray(lineArray) && lineArray.length >= 5){
-    return [lineArray[2], {
+    const en = lineArray[1].trim();
+    return [`${lineArray[2]}|${en}`, {
       node: lineArray[0].trim(),
-      en: lineArray[1].trim(),
+      en: en,
       // cn: lineArray[2],
       readonly: lineArray[3] === 'R',
       type: lineArray[4].trim(),
