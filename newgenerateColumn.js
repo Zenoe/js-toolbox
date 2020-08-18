@@ -11,6 +11,8 @@ console.log('read file: ', filename);
 
 const commonfun = require('./common/commonfun');
 
+let currentClassName = '';
+
 fs.readFile(filename || './rrmdata.txt', function(err, data) {
   if(err) throw err;
   var array = data.toString().split("\n");
@@ -22,7 +24,8 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
   let keyName = '';
   const jsonLst = [];
   const keyMapLst = [];
-  const mapObj = {};
+  keyMapLst.push('keyMap')
+  let mapObj = {};
   let currentmapObjKey = '';
   let treeHierarchyData = '';
   for(i in array.slice(1)) {
@@ -55,7 +58,7 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
         json['text'] = lineArray[0];
         // json['name'] = lineArray[1];
 
-        console.log('key, nameCn:', keyName, nameCn);
+        // console.log('key, nameCn:', keyName, nameCn);
         const nodeInfo = rrm[keyName][nameCn];
         // console.log('--------------', rrm[keyName][nameCn]);
         if(nodeInfo){
@@ -84,6 +87,16 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
         }
       }else if(length === 3 || length === 4){
         // jsonLst.push(lineArray[1]);
+        // write map.js for last section
+
+        if(length ===4 && currentClassName.length > 0){
+          generateMapFile(moduleName, currentClassName, mapObj)
+          mapObj = {};
+          // const filePath = `${moduleName}/${currentClassName.toLowerCase()}`
+          // commonfun.objectList2File(`${filePath}/map.js`, [currentClassName, mapObj], false);
+          // mapObj = {}
+        }
+
         jsonLst.push(line);
         currentmapObjKey = lineArray[0]
         mapObj[currentmapObjKey] = {};
@@ -93,9 +106,8 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
           if(keyMapLst.length > 0){
             keyMapLst.push(mapObj)
           }
-          keyMapLst.push('keyMap')
           keyName = lineArray[0];
-          generatePageFile(moduleName, lineArray)
+          generatePageFile(moduleName, lineArray, mapObj)
           const className = lineArray[2];
           const fileName = className.toLowerCase();
           const importStatment = `import ${className} from './component/${moduleName}/${fileName}'\n`
@@ -108,10 +120,12 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
 
   // push the last mapObj
   keyMapLst.push(mapObj)
-  console.log(keyMapLst);
+  generateMapFile(moduleName, currentClassName, mapObj)
+
+  // console.log(keyMapLst);
   // console.log(jsonLst);
   datafieldprop(moduleName, jsonLst)
-  commonfun.objectList2File(`${moduleName}/map.js`, keyMapLst, false);
+  // commonfun.objectList2File(`${moduleName}/map.js`, keyMapLst, false);
 // objectList2File(moduleName)
   treedatabuf += '\n]\n'
   treedatabuf += `\nexport default ${moduleName}Children`
@@ -122,11 +136,19 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
   console.log(kvbuf);
 });
 
+function generateMapFile(moduleName, className, mapObj) {
+  const filePath = `${moduleName}/${className.toLowerCase()}`
+  commonfun.objectList2File(`${filePath}/map.js`, ['keyMap', mapObj], false);
+}
+
 // index.js
-function generatePageFile(moduleName, pageInfoArray) {
+function generatePageFile(moduleName, pageInfoArray, mapObj) {
   const className = pageInfoArray[2];
+  currentClassName = className;
+  console.log('-----------', currentClassName);
   const fileName = className.toLowerCase();
   const filePath = `${moduleName}/${fileName}`
+
 
   fs.readFile('./cellpage.tpl', function(err, data){
     if(err) throw err;

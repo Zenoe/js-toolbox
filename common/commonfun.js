@@ -32,6 +32,16 @@ module.exports = {
     });
   },
 
+  /*
+   * get a list of directories in certain dir
+   */
+  readSubDirectories :function(dir) {
+    const { readdirSync } = require('fs')
+      return readdirSync(dir, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name)
+  },
+
   isString: function(str){return typeof(exp) === 'string' || exp instanceof String},
 
   randomIntDataSet: function(dataSetSize, minValue, maxValue) {

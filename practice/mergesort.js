@@ -2,17 +2,17 @@ const commonfun = require('../common/commonfun');
 
 // avoid randomly naming variables
 // any variable name should be meanfull
-function mergesort(a, l, h) {
+function topdownMergesort(a, l, h) {
   if(l >= h){
     return;
   }
   const m = Math.floor((l+h)/2);
   mergesort(a,l,m);
   mergesort(a,m+1,h);
-  combine(a, l, m ,h);
+  topdownMerge(a, l, m ,h);
 }
 
-function combine(a, l, m, h) {
+function topdownMerge(a, l, m, h) {
   const a1 = [...a.slice(l,m+1)]  // [ l...m ]
   const a2 = [...a.slice(m+1,h+1)]  // [ m+1...h ]
   let i=0;
@@ -44,7 +44,20 @@ function combine(a, l, m, h) {
   }
 }
 
-const sortfun = mergesort
+// function bottomupMergesort(a, l, h) {
+//   let step =1;
+//   for(let i=l; i<=h; i+=1){
+//     for(let j=i; j<h; i+=2*step){
+//       bottomupMerge(a, i, i+step, i+step+1, i+2*step+1);
+//     }
+//   }
+// }
+
+function bottomupMerge(a, subarr1Start, subarr1End, subarr2Start, subarr2End)
+{
+ 
+}
+const sortfun = topdownMergesort
 
 const len = 18;
 const arr = commonfun.randomIntDataSet(len, 1,100)
