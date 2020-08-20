@@ -22,7 +22,7 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
   let kvbuf = '';
   let leafkey = '';
   let keyName = '';
-  const jsonLst = [];
+  let jsonLst = [];
   const keyMapLst = [];
   keyMapLst.push('keyMap')
   let mapObj = {};
@@ -33,6 +33,12 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
     if(!line.startsWith('#') && line.length !== 0){
       if(/(#|[0-9])/.test(line[0])){
         // extract tree hierarchy data
+
+        if(jsonLst.length > 0){
+          datafieldprop(moduleName, jsonLst)
+          jsonLst = []
+        }
+
         const lev = parseInt(line[0], 10);
 
         for(let i = lev-1; i>0; i -=1){
@@ -69,7 +75,23 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
             json['name'] = nameEn.substring(dotPos + 1);
           else
             json['name'] = nameEn;
-          json['type'] = rrm[keyName][nameCn]['type'];
+
+          // console.log(parseTypeValue(rrm[keyName][nameCn]['type']));
+          let fieldType, fieldRule
+          try{
+            [fieldType, fieldRule] = parseTypeValue(rrm[keyName][nameCn]['type'], rrm[keyName][nameCn]['des'])
+          }catch(ex){
+            console.log('parseTypeValue error');
+            console.log(parseTypeValue(rrm[keyName][nameCn]['type']));
+          }
+          json['type'] = fieldType;
+          if(fieldRule !== undefined){
+            if(fieldType === 'array'){
+              json['range'] = fieldRule
+            }else{
+              json['rule'] = fieldRule;
+            }
+          }
           json['node'] = rrm[keyName][nameCn]['node']
           json['des'] = rrm[keyName][nameCn]['des']
 
@@ -158,9 +180,21 @@ function generatePageFile(moduleName, pageInfoArray, mapObj) {
 
 }
 
-// data-field-prop.js
+/*
+  data-field-prop.js
+  'modulerrmFapserviceMeasObjectNrCellAdd',
+  'NR测量对象设置\trrmFapserviceMeasObjectNrCellAdd\tRRMNr\tkey',
+  Object,
+  Object,
+  'SSB测量\tssbMeasure\tssbMeasure',
+  Object,
+  Object,
+  Object,
+ */
 function datafieldprop(moduleName, objLst){
+  debugger
   let strbuf='';
+  let filePath = '';
   const dataVars = [];
 
   // indicates if a new array variable start
@@ -181,6 +215,10 @@ function datafieldprop(moduleName, objLst){
           strbuf += str;
         }else{
           const la = it.split('\t')
+          if(la.length === 4){
+            const className = la[2];
+            filePath = `${moduleName}/${className.toLowerCase()}`
+          }
           const title = la[0];
           const name = la[1];
           const titleStatement = `\t'${title}',`;
@@ -196,12 +234,17 @@ function datafieldprop(moduleName, objLst){
   strbuf += '\t]\n]'
   // strbuf = strbuf.substr(1, strbuf.length);
   strbuf += `\nexport {${dataVars.toString()}}`
-  commonfun.writeFile(`${moduleName}/data-field-prop.js`, strbuf)
+  const importStatement = "import {  minMaxValiator } from '@/utils/validator'\n\n"
+
+  commonfun.writeFile(`${filePath}/data-field-prop.js`, importStatement)
+  commonfun.appendFile(`${filePath}/data-field-prop.js`, strbuf)
   // console.log(strbuf);
 }
 
 function object2str(obj, indentLevel=2) {
   let indent='';
+  const notStringValueAttributes=['rule', 'readonly', 'range']
+
   for(let i = 0; i < indentLevel; i+=1){
     indent += '\t'
   }
@@ -209,7 +252,7 @@ function object2str(obj, indentLevel=2) {
   let str = `${lessIndent}{\n`;
   if(obj !== undefined){
     Object.keys(obj).forEach((it)=>{
-      if(it === 'readonly')
+      if(notStringValueAttributes.includes(it))
         str += `${indent}'${it}': ${obj[it]},\n`
       else
         str += `${indent}'${it}': '${obj[it]}',\n`
@@ -221,7 +264,7 @@ function object2str(obj, indentLevel=2) {
   return str;
 }
 
-const isString = str=>(typeof(exp) === 'string' || exp instanceof String)
+const isString = exp=>(typeof(exp) === 'string' || exp instanceof String)
 
 const getStrInParentheses = (str, ch_l, ch_r) =>{
   if(isString(str)){
@@ -231,24 +274,35 @@ const getStrInParentheses = (str, ch_l, ch_r) =>{
 }
 
 function parseTypeValue(typestr, des) {
+  console.log('parseTypeValue', typestr, des);
   if(typestr === 'string'){
     const rangestr = getStrInParentheses(des, '{', '}')
     return ['string', rangestr.split(',')]
   }
-  if(typestr === 'boolean'){
-    return 'boolean'
+  if(typestr.startsWith('bool')){
+    return ['boolean']
   }
-  if(typestr.toLowerCase().startsWith('unsignedInt') || typestr.toLowerCase().startsWith('int')){
+  if(typestr.toLowerCase().startsWith('unsignedint') || typestr.toLowerCase().startsWith('int')){
     const rangestr = typestr.substring(typestr.indexOf('[') + 1, typestr.indexOf(']'))
     if(rangestr){
       if(/[0-9]+:[0-9]+/.test(rangestr)){
         const [l,h] = rangestr.split(':')
-        return ['int', [myeval(l), myeval(h)]]
+        // return ['int', [myeval(l), myeval(h)]]
+        return ['number', `minMaxValiator(${myeval(l)}, ${myeval(h)})`]
+        return ['number', validator]
       }
-      if(/([0-9]\,)+[0-9]$/.test(rangestr)){
-        return ['array', rangestr.split(',')]
+      // 5,10,20,40,180
+      if(/([0-9]+\,)+[0-9]+$/.test(rangestr)){
+        // return 'array', range
+        return ['array', `[ ${rangestr.split(',')}]`]
       }
+    }else{
+      return ['number']
     }
+  }
+  // special cases
+  if(typestr === '80bits'){
+    return ['string']
   }
 }
 

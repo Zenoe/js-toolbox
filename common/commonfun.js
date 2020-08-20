@@ -97,7 +97,7 @@ module.exports = {
               str += object2str(obj[it], indentLevel + 1)
             }
             else{
-              if(it === 'readonly')
+              if(it === 'someAttribute') // some attributes, the values of which neednt be quoted
                 str += `${indent}'${it}': ${obj[it]},\n`
               else
                 str += `${indent}'${it}': '${obj[it]}',\n`
