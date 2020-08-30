@@ -13,7 +13,17 @@
     "mkdirp": "^1.0.4"
   },
   "devDependencies": {
+    "airbnb": "^0.0.2",
+    "babel-eslint": "^10.1.0",
     "eslint": "^7.5.0",
+    "eslint-config-airbnb": "^18.2.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-compat": "^3.8.0",
+    "eslint-plugin-flowtype": "^5.2.0",
+    "eslint-plugin-import": "^2.22.0",
+    "eslint-plugin-jsx-a11y": "^6.3.1",
+    "eslint-plugin-react": "^7.20.6",
+    "jest": "^26.4.2",
     "mkdir": "0.0.2"
   }
 }

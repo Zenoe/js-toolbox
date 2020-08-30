@@ -32,5 +32,5 @@ fs.readFile(filename, function(err, data) {
     }
   })
 
-  commonfun.objectList2File('output/treedata/treedata.js', treeDataArray)
+  commonfun.objectList2File('output/treedata/rrm-tree-data.js', treeDataArray)
 });

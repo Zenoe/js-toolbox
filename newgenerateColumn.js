@@ -1,6 +1,7 @@
 
 const {rrm} = require('./output/rrmobj');
 const fs = require('fs');
+
 const myArgs = process.argv.slice(2);
 const filename = myArgs[0]
 
@@ -15,7 +16,7 @@ let currentClassName = '';
 
 fs.readFile(filename || './rrmdata.txt', function(err, data) {
   if(err) throw err;
-  var array = data.toString().split("\n");
+  const array = data.toString().split("\n");
   const moduleName = array[0];
   let treedatabuf = `const ${moduleName}Children = [`
   let importbuf = '';
@@ -28,7 +29,7 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
   let mapObj = {};
   let currentmapObjKey = '';
   let treeHierarchyData = '';
-  for(i in array.slice(1)) {
+  for(const i in array.slice(1)) {
     const line = array[i].trim();
     if(!line.startsWith('#') && line.length !== 0){
       if(/(#|[0-9])/.test(line[0])){
@@ -88,8 +89,15 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
           if(fieldRule !== undefined){
             if(fieldType === 'array'){
               json['range'] = fieldRule
-            }else{
-              json['rule'] = fieldRule;
+            }else if(fieldType === 'string'){
+              console.log('----------fieldRule', fieldRule);
+              let rangestr = "["
+              fieldRule.forEach((it)=>{
+                rangestr += `'${it}',`
+              })
+              rangestr += "]"
+              // json['rule'] = fieldRule;
+              json['range'] = rangestr;
             }
           }
           json['node'] = rrm[keyName][nameCn]['node']
@@ -220,7 +228,6 @@ function datafieldprop(moduleName, objLst){
             filePath = `${moduleName}/${className.toLowerCase()}`
           }
           const title = la[0];
-          const name = la[1];
           const titleStatement = `\t'${title}',`;
 
           const str = newModuleStart ? `${titleStatement}\n\t[\n` : `\t],\n${titleStatement}\n\t[\n`
@@ -277,7 +284,12 @@ function parseTypeValue(typestr, des) {
   console.log('parseTypeValue', typestr, des);
   if(typestr === 'string'){
     const rangestr = getStrInParentheses(des, '{', '}')
-    return ['string', rangestr.split(',')]
+    const rangeArray = []
+
+    rangestr.split(',').forEach((it)=>{
+      rangeArray.push(`${it}`)
+    })
+    return ['string', rangeArray]
   }
   if(typestr.startsWith('bool')){
     return ['boolean']
@@ -289,7 +301,7 @@ function parseTypeValue(typestr, des) {
         const [l,h] = rangestr.split(':')
         // return ['int', [myeval(l), myeval(h)]]
         return ['number', `minMaxValiator(${myeval(l)}, ${myeval(h)})`]
-        return ['number', validator]
+        // return ['number', validator]
       }
       // 5,10,20,40,180
       if(/([0-9]+\,)+[0-9]+$/.test(rangestr)){
