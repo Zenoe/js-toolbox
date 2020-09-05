@@ -15,8 +15,6 @@ class %classname% extends React.PureComponent{
 
   readonlyTable = false;
 
-  commonNodePrefix
-
   cachedTr069KeyObj = {};
 
   constructor(props){
@@ -28,7 +26,11 @@ class %classname% extends React.PureComponent{
   }
 
   componentDidMount(){
-    this.requestData();
+    this.requestData().catch(
+      reject=>{
+        message.warning(reject.message || reject)
+      }
+    )
   }
 
   requestData = ()=>{
@@ -44,7 +46,8 @@ class %classname% extends React.PureComponent{
       const oneofNode = headDataInfos[0][0].node.replace('{i}', selectedCell.fapServiceNum);
       const params = {
         'sn': selectedCell.serialNumber,
-        'names': [ oneofNode.substring(0,oneofNode.indexOf('.{i}')) ]
+        'names': [ oneofNode.substring(0,oneofNode.indexOf('.{i}')) ||
+                   oneofNode.substring(0,oneofNode.lastIndexOf('.')) ]
       }
 
       this.setState({
@@ -58,15 +61,17 @@ class %classname% extends React.PureComponent{
         res => {
           const { values } = res.data.data
           // console.log(transformParams()(values, keyMapObj, Object.keys(values)));
-          const [commonNodePrefix, dataSource] = processResValues(values, mainProperty);
-          this.commonNodePrefix = commonNodePrefix;
+          const dataSource = processResValues(values, mainProperty);
           this.setState({
             dataSource,
             loading: false,
           }, resolve())
         }
-      ).catch(()=>{
-        reject ( new Error('fetch data failed'))
+      ).catch(requestReject=>{
+        this.setState({
+          loading: false,
+        })
+        reject (requestReject)
       })
     })
   }
@@ -114,9 +119,7 @@ class %classname% extends React.PureComponent{
       return;
     }
 
-    const partofNode = rowkey.substring(0, rowkey.indexOf(':'))
-    const tr069Prefix = `${this.commonNodePrefix}${partofNode}`;
-    // console.log('handleSubmit:', params, idx,  tr069Prefix);
+    const tr069Prefix = rowkey;
 
     const cachedTblRecordIdxObj = {};
 
@@ -160,8 +163,8 @@ class %classname% extends React.PureComponent{
           message.success('配置成功')
           // this.cachedTblRecordIdxObj= {};
           this.cachedTr069KeyObj = {};
-        }).catch(()=>{
-          console.log('failed');
+        }).catch((reject)=>{
+          message.warning(reject.message || reject)
         })
       }else{
         message.warning(checkMsg)

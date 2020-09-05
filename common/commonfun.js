@@ -156,8 +156,9 @@ module.exports = {
       console.log(strbuf);
     }
     else{
-      this.writeFile(filepath, `// ${this.getTimeStamp()}\n\n`)
-      this.appendFile(filepath, strbuf)
+      // this.writeFile(filepath, `// ${this.getTimeStamp()}\n\n`)
+      // this.appendFile(filepath, strbuf)
+      this.writeFile(filepath, strbuf)
     }
   }
 }

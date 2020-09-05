@@ -59,3 +59,19 @@ cbfunPromisfy(-222).then((res)=>{
 }).catch((res)=>{
   console.log('reject:', res);
 })
+
+console.log('-------------------------');
+function retPromise(arg) {
+  return new Promise((resolve, reject)=>{
+    if(arg){
+      resolve('arg is true')
+    }else{
+      reject(new Error('argisfalse'))
+    }
+  })
+}
+
+retPromise(true).then(resolve=>console.log('resolve', resolve))
+                 .catch(reject=>console.log(reject.message))
+retPromise(false).then(resolve=>console.log('resolve', resolve))
+                 .catch(reject=>console.log(reject.message))

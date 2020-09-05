@@ -29,8 +29,8 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
   let mapObj = {};
   let currentmapObjKey = '';
   let treeHierarchyData = '';
-  for(const i in array.slice(1)) {
-    const line = array[i].trim();
+  array.slice(1).forEach(rawline=>{
+    const line = rawline.trim();
     if(!line.startsWith('#') && line.length !== 0){
       if(/(#|[0-9])/.test(line[0])){
         // extract tree hierarchy data
@@ -42,21 +42,20 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
 
         const lev = parseInt(line[0], 10);
 
-        for(let i = lev-1; i>0; i -=1){
+        for(let k = lev-1; k>0; k -=1){
           treeHierarchyData += SP4;
         }
         const la = line.slice(1).split('\t');
-        leafkey = la[0];
+        [ leafkey ] = la;
         treeHierarchyData += leafkey;
         treeHierarchyData += '\n';
         if(la.length > 1){
           jsonLst.push(la[1]);
         }
-        continue;
+        return;
       }
       const lineArray = line.split('\t');
       const { length } = lineArray
-      const ancestors = [];
       if(length === 2){
         const json = {};
 
@@ -90,7 +89,6 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
             if(fieldType === 'array'){
               json['range'] = fieldRule
             }else if(fieldType === 'string'){
-              console.log('----------fieldRule', fieldRule);
               let rangestr = "["
               fieldRule.forEach((it)=>{
                 rangestr += `'${it}',`
@@ -137,7 +135,7 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
             keyMapLst.push(mapObj)
           }
           keyName = lineArray[0];
-          generatePageFile(moduleName, lineArray, mapObj)
+          generatePageFile(moduleName, lineArray )
           const className = lineArray[2];
           const fileName = className.toLowerCase();
           const importStatment = `import ${className} from './component/${moduleName}/${fileName}'\n`
@@ -146,6 +144,9 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
         }
       }
     }
+  })
+  for(const i in array.slice(1)) {
+
   }
 
   // push the last mapObj
@@ -156,11 +157,10 @@ fs.readFile(filename || './rrmdata.txt', function(err, data) {
   // console.log(jsonLst);
   datafieldprop(moduleName, jsonLst)
   // commonfun.objectList2File(`${moduleName}/map.js`, keyMapLst, false);
-// objectList2File(moduleName)
   treedatabuf += '\n]\n'
   treedatabuf += `\nexport default ${moduleName}Children`
   // console.log(treedatabuf);
-  // commonfun.writeFile(`${moduleName}/${moduleName}-tree-data.js`, treedatabuf);
+  commonfun.writeFile(`${moduleName}/${moduleName}-tree-data.js`, treedatabuf);
   commonfun.writeFile('output/treeHierarchyData.txt', treeHierarchyData)
   console.log(importbuf);
   console.log(kvbuf);
@@ -172,15 +172,20 @@ function generateMapFile(moduleName, className, mapObj) {
 }
 
 // index.js
-function generatePageFile(moduleName, pageInfoArray, mapObj) {
+// lineArray: NR测量对象设置	rrmFapserviceMeasObjectNrCellAdd	RRMNr	tr069key(form)
+function generatePageFile(moduleName, pageInfoArray ) {
   const className = pageInfoArray[2];
   currentClassName = className;
   console.log('-----------', currentClassName);
   const fileName = className.toLowerCase();
   const filePath = `${moduleName}/${fileName}`
 
+  let template = './cellpage.tpl';
+  if(pageInfoArray[3].includes('form')){
+   template = './cellpageform.tpl' ;
+  }
 
-  fs.readFile('./cellpage.tpl', function(err, data){
+  fs.readFile(template, function(err, data){
     if(err) throw err;
     commonfun.writeFile(`${filePath}/index.js`, data.toString().replace('%title%', pageInfoArray[0]).replace(/%classname%/g, className).replace(/%conftype%/g, pageInfoArray[1]))
     // console.log(data.toString().replace('%title%', pageInfoArray[0]).replace(/%classname%/g, pageInfoArray[2]).replace(/%conftype%/g, pageInfoArray[1]));
@@ -271,10 +276,9 @@ function object2str(obj, indentLevel=2) {
   return str;
 }
 
-const isString = exp=>(typeof(exp) === 'string' || exp instanceof String)
 
 const getStrInParentheses = (str, ch_l, ch_r) =>{
-  if(isString(str)){
+  if(commonfun.isString(str)){
     return str.substring(str.indexOf(ch_l) + 1, str.indexOf(ch_r))
   }
   return '';
@@ -282,7 +286,7 @@ const getStrInParentheses = (str, ch_l, ch_r) =>{
 
 function parseTypeValue(typestr, des) {
   console.log('parseTypeValue', typestr, des);
-  if(typestr === 'string'){
+  if(typestr.toLowerCase().startsWith('string')){
     const rangestr = getStrInParentheses(des, '{', '}')
     const rangeArray = []
 
@@ -304,7 +308,7 @@ function parseTypeValue(typestr, des) {
         // return ['number', validator]
       }
       // 5,10,20,40,180
-      if(/([0-9]+\,)+[0-9]+$/.test(rangestr)){
+      if(/([0-9]+,)+[0-9]+$/.test(rangestr)){
         // return 'array', range
         return ['array', `[ ${rangestr.split(',')}]`]
       }
@@ -319,10 +323,36 @@ function parseTypeValue(typestr, des) {
 }
 
 function myeval(exp) {
-  if(isString(exp))
+  if(commonfun.isString(exp))
     return eval(exp.replace('^', '**'));
   if(typeof(exp) === 'number'){
     return exp;
   }
   return NaN;
+}
+
+const testRegexs = (arrRegex, str) =>{
+  return arrRegex.some(regex=>(new RegExp(regex).test(str)))
+}
+
+const extractRegex = nodes =>{
+  const commonPrefixObj = {};
+  nodes.forEach(node=>{
+
+    const lastSection = node.substring(node.lastIndexOf('.') + 1)
+    const prefix = node.substring(0, node.lastIndexOf('.'))
+
+    if(commonPrefixObj[prefix] === undefined){
+      commonPrefixObj[prefix] = [];
+    }
+
+    commonPrefixObj[prefix].push(lastSection)
+  })
+
+  const arrRegex = [];
+  Object.keys(commonPrefixObj).forEach((prefix)=>{
+    const regexCombineLastSections = `${prefix}.(${commonPrefixObj[prefix].join('|')})`
+    arrRegex.push(regexCombineLastSections.replace(/\./g, '\\.').replace(/{i}/g,'\\d+'))
+  })
+  return arrRegex;
 }
