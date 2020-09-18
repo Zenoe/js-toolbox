@@ -42,7 +42,7 @@ module.exports = {
       .map(dirent => dirent.name)
   },
 
-  isString: function(str){return typeof(exp) === 'string' || exp instanceof String},
+  isString: function(exp){return typeof(exp) === 'string' || exp instanceof String},
 
   randomIntDataSet: function(dataSetSize, minValue, maxValue) {
     return new Array(dataSetSize).fill(0).map(function(n) {

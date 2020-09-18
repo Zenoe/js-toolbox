@@ -193,6 +193,54 @@ function generatePageFile(moduleName, pageInfoArray ) {
 
 }
 
+function addIProperty(obj){
+  const retObj = [];
+  // if(objLst.length > 0)
+    // Device.X_WWW-RUIJIE-COM-CN.Services.FAPService.{i}.CellConfig.NR.RAN.Mobility.ConnMode.NR.MeasObjectNR.{i}.CellAdd.{i}.PhysCellId
+    // const node = objLst[2].node;
+    const node = obj.node;
+    let dataName = node.substring(node.indexOf('FAPService.{i}.') + 'FAPService.{i}.'.length)
+
+  // if(dataName.indexOf('.{i}') < 0){
+  //   return objLst
+  // }
+
+  const keyIPos = dataName.search(/\w+\.(?=\{i}+)/);
+  if(keyIPos === -1){
+    // no {i} left after FAPService.{i}  being removed
+    // .CellConfig.NR.RAN.LB.PRBUtilizationAlgorithm.ExecuteThresholdUL
+    // ==> ExecuteThresholdUL
+    dataName = dataName.substring(dataName.lastIndexOf('.') + 1)
+  }
+  else{
+    // CellConfig.NR.RAN.Mobility.ConnMode.NR.MeasObjectNR.{i}.CellAdd.{i}.PhysCellId
+    // MeasObjectNR.{i}.CellAdd.{i}.PhysCellId
+    dataName = dataName.substring(dataName.search(/\w+\.(?=\{i})/));
+  }
+
+  dataName = dataName.substring(0, dataName.lastIndexOf('.'))
+  const instanceProp = dataName.split('.{i}')
+  // ["MeasObjectNR", ".CellAdd", ""]
+  instanceProp.forEach((it)=>{
+    let prop = it;
+    if(it.startsWith('.')){
+      prop = it.substring(1);
+    }
+    if(prop.length > 0){
+      retObj.push({
+        'text': prop,
+        'readonly': true,
+        'name': prop,
+        'type': 'number',
+        'node': node,
+        'des': '',
+      })
+    }
+  })
+  // retObj.push(...objLst)
+  // console.log(retObj);
+  return retObj
+}
 /*
   data-field-prop.js
   'modulerrmFapserviceMeasObjectNrCellAdd',
@@ -212,10 +260,19 @@ function datafieldprop(moduleName, objLst){
 
   // indicates if a new array variable start
   let newModuleStart = false;
+  let newSectionStart = false;
 
   if(Array.isArray(objLst)){
     objLst.forEach((it, idx)=>{
       if(typeof it  === 'object'){
+        if(newSectionStart){
+          const propObjArray = addIProperty(it);
+          propObjArray.forEach((propObj)=>{
+            const str = object2str(propObj, 3);
+            strbuf += str;
+          })
+          newSectionStart = false
+        }
         const str = object2str(it, 3);
         strbuf += str;
         // console.log(str);
@@ -227,6 +284,7 @@ function datafieldprop(moduleName, objLst){
           dataVars.push(moduleName)
           strbuf += str;
         }else{
+          newSectionStart = true
           const la = it.split('\t')
           if(la.length === 4){
             const className = la[2];

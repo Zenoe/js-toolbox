@@ -146,6 +146,32 @@ class %classname% extends React.PureComponent{
 
   }
 
+  addInstance = (instanceName)=>{
+    const {selectedCell} = this.props
+
+    console.log('addInstance:', instanceName);
+    request(`${API_URL}/conf-service/inner/addInstance`,{
+      method: 'POST',
+      body: [ {'sn': selectedCell.serialNumber, instanceName } ]
+    }).then(res => {
+      const [isSuccess, checkMsg] = checkRes(res.data);
+      if(isSuccess){
+        this.requestData().then(()=>{
+          message.success('配置成功')
+          // this.cachedTblRecordIdxObj= {};
+          this.cachedTr069KeyObj = {};
+        }).catch((reject)=>{
+          message.warning(reject.message || reject)
+          console.log(reject);
+        })
+      }else{
+        message.warning(checkMsg)
+      }
+    }).catch(err => {
+      console.log(err);
+    })
+  }
+
   saveAll = ()=>{
     const {selectedCell} = this.props
 
@@ -185,10 +211,14 @@ class %classname% extends React.PureComponent{
           <SiteConfigTitle name={titles[idx]} />
           <EditableFormTable
             tableIndex={idx}
+            title={titles[idx]}
             handleSaveEdit={this.preSubmit}
             columns={this.generateHeader(headDataInfo)}
             readonly={readonlyTable}
             onChange={this.onChange}
+            addop
+            handleAddInstance={this.addInstance}
+            handleDelInstance={this.delInstance}
             dataSource={dataSource[idx]}
             {...this.props}
           />
