@@ -54,7 +54,7 @@ class %classname% extends React.PureComponent{
         body: params,
       }).then(
         res => {
-          const { values } = res.data.data
+          const values = res.data
           const [commonNodePrefix, dataSource] = processSimpleTr069Values(values, mainProperty);
           this.commonNodePrefix = commonNodePrefix.replace('{i}', selectedCell.fapServiceNum);
           this.setState({

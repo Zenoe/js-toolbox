@@ -47,13 +47,13 @@ function line2Obj(lineArray) {
     const en = lineArray[1].trim();
     return [`${lineArray[2]}|${en}`, {
       node: lineArray[0].trim(),
-      en: en,
+      en,
       // cn: lineArray[2],
       readonly: lineArray[3] === 'R',
       type: lineArray[4].trim(),
       des: lineArray[5] || '',
     }]
   }
-  console.log('error line', lineArray);
+  console.log('error line', lineArray, lineArray.length);
   return null;
 }

@@ -1,29 +1,64 @@
+const path = require('path')
 const fs = require('fs');
 // const mkdirp = require('mkdirp');
 
-module.exports = {
-  writeFile: function(filePath, content){
-    const thispath = filePath.substring(0, filePath.lastIndexOf('\/'));
-    // console.log('mkdir: ', thispath);
-    if (thispath.length > 0 && ! fs.existsSync(thispath)) {
-      try{
-        fs.mkdirSync(thispath, { recursive: true })
-      }catch(e){
-        console.log('mkdirSync failed: ', e);
+// function flatten(arr) {
+//   return arr.reduce(function (flat, toFlatten) {
+//     return flat.concat(Array.isArray(toFlatten) ? flatten(toFlatten) : toFlatten);
+//   }, []);
+// }
+const flatten = (arr) =>  arr.reduce((flat, next) => flat.concat(next), []);
+const findFilesRecursiveSync = (startPath, includeStr='', excludeDir=[]) => {
+  const result = [];
+  const files = fs.readdirSync(startPath);
+
+  files.forEach(val => {
+    const file = path.join(startPath, val);
+    const stats = fs.statSync(file);
+
+    if(stats.isDirectory() && !excludeDir.includes(val)) {
+      result.push(...findFilesRecursiveSync(file, includeStr, excludeDir));
+    } else if(stats.isFile()) {
+      if(includeStr.length > 0){
+        if(val.includes(includeStr)){
+          result.push(file);
+        }
+      }else{
+        result.push(file);
       }
     }
-    fs.writeFileSync(filePath, content, function (err) {
-      if (err) return console.log('writeFile failed:', err);
-      console.log('saved: ', filePath);
-    });
-    console.log('write to file:', filePath);
-    // mkdirp(filePath.substring(0, filePath.lastIndexOf('\/'))).then(()=>{
-    //   fs.writeFile(filePath, content, function (err) {
-    //     if (err) return console.log('writeFile failed:', err);
-    //     console.log('saved: ', filePath);
-    //   });
-    // })
-  },
+  });
+
+  return result;
+}
+
+const writeFile = (filePath, content) => {
+  const thispath = filePath.substring(0, filePath.lastIndexOf('\/'));
+  // console.log('mkdir: ', thispath);
+  if (thispath.length > 0 && ! fs.existsSync(thispath)) {
+    try{
+      fs.mkdirSync(thispath, { recursive: true })
+    }catch(e){
+      console.log('mkdirSync failed: ', e);
+    }
+  }
+  fs.writeFileSync(filePath, content, function (err) {
+    if (err) return console.log('writeFile failed:', err);
+    console.log('saved: ', filePath);
+  });
+  console.log('write to file:', filePath);
+  // mkdirp(filePath.substring(0, filePath.lastIndexOf('\/'))).then(()=>{
+  //   fs.writeFile(filePath, content, function (err) {
+  //     if (err) return console.log('writeFile failed:', err);
+  //     console.log('saved: ', filePath);
+  //   });
+  // })
+}
+
+module.exports = {
+  flatten,
+  findFilesRecursiveSync,
+  writeFile,
 
   appendFile: function(filePath, content){
     fs.appendFileSync(filePath, content, function (err) {
@@ -54,15 +89,7 @@ module.exports = {
     return !!obj && obj === Object(obj) && Object.prototype.toString.call(obj) !== '[object Array]'
   },
 
-  getTimeStamp: function(){
-    const today = new Date();
-    const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const date = today.getFullYear()+'-'+mm+'-'+dd;
-    const time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
-    const dateTime = date+' '+time;
-    return dateTime;
-  },
+
 
   countLeadingSpc : function (str){
     return /^ .*/.test(str) ? str.search(/\S/) : 0

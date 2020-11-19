@@ -59,7 +59,7 @@ class %classname% extends React.PureComponent{
         body: params,
       }).then(
         res => {
-          const { values } = res.data.data
+          const values = res.data
           // console.log(transformParams()(values, keyMapObj, Object.keys(values)));
           const dataSource = processResValues(values, mainProperty);
           this.setState({
@@ -71,7 +71,8 @@ class %classname% extends React.PureComponent{
         this.setState({
           loading: false,
         })
-        reject (requestReject)
+        reject('请求数据失败')
+        console.log(requestReject);
       })
     })
   }
@@ -146,28 +147,49 @@ class %classname% extends React.PureComponent{
 
   }
 
-  addInstance = (instanceName)=>{
-    const {selectedCell} = this.props
+  handleResponse = (res)=>{
+    const [isSuccess, checkMsg] = checkRes(res.data);
+    if(isSuccess){
+      this.requestData().then(()=>{
+        message.success('配置成功')
+        // this.cachedTblRecordIdxObj= {};
+        this.cachedTr069KeyObj = {};
+      }).catch((reject)=>{
+        message.warning(请求数据失败)
+        console.log(reject);
+      })
+    }else{
+      message.warning(checkMsg)
+    }
+  }
 
-    console.log('addInstance:', instanceName);
+  delInstance = (recordIndex, tableIndex)=>{
+    const {selectedCell } = this.props
+    const {dataSource} = this.state;
+    const tableData = dataSource[tableIndex]
+    const { key } = tableData[0]
+
+    request(`${API_URL}/conf-service/inner/deleteInstance`,{
+      method: 'POST',
+      body: [ {'sn': selectedCell.serialNumber, instanceName: key } ]
+    }).then(res=>this.handleResponse(res)).catch(err => {
+      console.log(err);
+    })
+  }
+
+  addInstance = (instanceValues, node)=>{
+    const {selectedCell} = this.props
+    let instanceName = node
+    // Device.FAPService.1.CellConfig..MeasObjectEUTRA.x.CellAdd.y
+    // ====>
+    // Device.FAPService.1.CellConfig..MeasObjectEUTRA.a.CellAdd.b
+    Object.keys(instanceValues).forEach((prop)=>{
+      instanceName = instanceName.replace(new RegExp(`${prop}\\.\\d+`), `${prop}.${instanceValues[prop]}`)
+    })
     request(`${API_URL}/conf-service/inner/addInstance`,{
       method: 'POST',
       body: [ {'sn': selectedCell.serialNumber, instanceName } ]
-    }).then(res => {
-      const [isSuccess, checkMsg] = checkRes(res.data);
-      if(isSuccess){
-        this.requestData().then(()=>{
-          message.success('配置成功')
-          // this.cachedTblRecordIdxObj= {};
-          this.cachedTr069KeyObj = {};
-        }).catch((reject)=>{
-          message.warning(reject.message || reject)
-          console.log(reject);
-        })
-      }else{
-        message.warning(checkMsg)
-      }
-    }).catch(err => {
+    }).then(res=>this.handleResponse(res)).catch(err => {
       console.log(err);
     })
   }
@@ -217,6 +239,7 @@ class %classname% extends React.PureComponent{
             readonly={readonlyTable}
             onChange={this.onChange}
             addop
+            deleteAble
             handleAddInstance={this.addInstance}
             handleDelInstance={this.delInstance}
             dataSource={dataSource[idx]}

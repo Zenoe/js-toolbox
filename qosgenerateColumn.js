@@ -1,5 +1,8 @@
 const fs = require('fs');
+
 const {rrm} = require('./output/rrmobj');
+
+const parseTypeValue = require('./common/parseType')
 
 const myArgs = process.argv.slice(2);
 const filename = myArgs[0]
@@ -16,8 +19,7 @@ let currentClassName = '';
 fs.readFile(filename , function(err, data) {
   if(err) throw err;
   const array = data.toString().split("\n");
-  const moduleName = array[0];
-  let treedatabuf = `const ${moduleName}Children = [`
+  const moduleName = array[0];  // the firt line to csv
   let importbuf = '';
   let kvbuf = '';
   let leafkey = '';
@@ -27,7 +29,7 @@ fs.readFile(filename , function(err, data) {
   keyMapLst.push('keyMap')
   let mapObj = {};
   let currentmapObjKey = '';
-  let treeHierarchyData = '';
+  let treeHierarchyData = moduleName + '\n';
   array.slice(1).forEach(rawline=>{
     const line = rawline.trim();
     if(!line.startsWith('#') && line.length !== 0){
@@ -47,9 +49,9 @@ fs.readFile(filename , function(err, data) {
         [ leafkey ] = la;
         treeHierarchyData += leafkey;
         treeHierarchyData += '\n';
-        if(la.length > 1){
-          jsonLst.push(la[1]);
-        }
+        // if(la.length > 1){
+        //   jsonLst.push(la[1]);
+        // }
         return;
       } // starts with digit
 
@@ -59,11 +61,11 @@ fs.readFile(filename , function(err, data) {
         const json = {};
 
         // subkey
-        const nameCn = `${lineArray[0]}|${lineArray[1]}`;
-        json['text'] = lineArray[0];
-        // json['name'] = lineArray[1];
+        const nameCn = `${lineArray[1]}|${lineArray[0]}`;
+        json['text'] = lineArray[1];
+        // json['name'] = lineArray[0];
 
-        // console.log('key, nameCn:', keyName, nameCn);
+        // console.log('key, nameCn:', keyName,',', nameCn);
         const nodeInfo = rrm[keyName][nameCn];
         // console.log('--------------', rrm[keyName][nameCn]);
         if(nodeInfo){
@@ -108,9 +110,9 @@ fs.readFile(filename , function(err, data) {
 
         }else{
           // {i}
-          json['name'] = lineArray[1];
-          json['readonly'] = true;
-          json['type'] = 'int';
+          json.name = lineArray[1];
+          json.readonly = true;
+          json.type = 'int';
         }
       }else if(length === 3 || length === 4){
         // jsonLst.push(lineArray[1]);
@@ -125,15 +127,17 @@ fs.readFile(filename , function(err, data) {
         }
 
         jsonLst.push(line);
-        currentmapObjKey = lineArray[0]
+        currentmapObjKey = lineArray[1]
         mapObj[currentmapObjKey] = {};
-        console.log('push', lineArray[1]);
+        console.log('push', lineArray[0]);
         if(length === 4){
           // new page
           if(keyMapLst.length > 0){
             keyMapLst.push(mapObj)
           }
-          keyName = lineArray[0];
+          if(lineArray[3].includes('tr069key')){
+            [ keyName ] = lineArray;
+          }
           generatePageFile(moduleName, lineArray )
           const className = lineArray[2];
           const fileName = className.toLowerCase();
@@ -156,10 +160,6 @@ fs.readFile(filename , function(err, data) {
   // console.log(jsonLst);
   datafieldprop(moduleName, jsonLst)
   // commonfun.objectList2File(`${moduleName}/map.js`, keyMapLst, false);
-  treedatabuf += '\n]\n'
-  treedatabuf += `\nexport default ${moduleName}Children`
-  // console.log(treedatabuf);
-  commonfun.writeFile(`${moduleName}/${moduleName}-tree-data.js`, treedatabuf);
   commonfun.writeFile('output/treeHierarchyData.txt', treeHierarchyData)
   console.log(importbuf);
   console.log(kvbuf);
@@ -257,9 +257,11 @@ function datafieldprop(moduleName, objLst){
   let filePath = '';
   const dataVars = [];
 
+  console.log('datafieldprop:', moduleName, objLst);
   // indicates if a new array variable start
   let newModuleStart = false;
   let newSectionStart = false;
+  let dataFieldName
 
   if(Array.isArray(objLst)){
     objLst.forEach((it, idx)=>{
@@ -276,32 +278,36 @@ function datafieldprop(moduleName, objLst){
         strbuf += str;
         // console.log(str);
       }else if(typeof it === 'string' && it.length > 0){
-        if(it.startsWith('module')){
+        const la = it.split('\t')
+        newSectionStart = true
+        if(la.length === 4){
           newModuleStart = true;
-          const moduleName = it.slice('module'.length)
-          const str = idx === 0 ? `const ${moduleName} = [\n` : `\n\t]\n]\nconst ${moduleName} = [\n`
-          dataVars.push(moduleName)
+          dataFieldName = la[1]
+          console.log('dataFieldName', dataFieldName);
+          const str = idx === 0 ? `const ${dataFieldName} = [\n` : `\n\t]\n]\nconst ${dataFieldName} = [\n`
+          dataVars.push(dataFieldName)
           strbuf += str;
-        }else{
-          newSectionStart = true
-          const la = it.split('\t')
-          if(la.length === 4){
-            const className = la[2];
-            filePath = `${moduleName}/${className.toLowerCase()}`
-          }
-          const title = la[0];
-          const titleStatement = `\t'${title}',`;
 
-          const str = newModuleStart ? `${titleStatement}\n\t[\n` : `\t],\n${titleStatement}\n\t[\n`
-          strbuf += str;
-          newModuleStart = false;
+          const className = la[2];
+          filePath = `${moduleName}/${className.toLowerCase()}`
         }
+        const title = la[0];
+        const titleStatement = `\t'${title}',`;
+
+        const str = newModuleStart ? `${titleStatement}\n\t[\n` : `\t],\n${titleStatement}\n\t[\n`
+        strbuf += str;
+        newModuleStart = false;
+
       }
     })
   }
 
   strbuf += '\t]\n]'
   // strbuf = strbuf.substr(1, strbuf.length);
+  commonfun.writeFile(`${filePath}/data-field-prop.node.js`, strbuf)
+  const moduleExport = `\nmodule.exports=${dataFieldName}`
+  commonfun.appendFile(`${filePath}/data-field-prop.node.js`, moduleExport )
+
   strbuf += `\nexport {${dataVars.toString()}}`
   const importStatement = "import {  minMaxValiator } from '@/utils/validator'\n\n"
 
@@ -331,61 +337,6 @@ function object2str(obj, indentLevel=2) {
   }
 
   return str;
-}
-
-
-const getStrInParentheses = (str, ch_l, ch_r) =>{
-  if(commonfun.isString(str)){
-    return str.substring(str.indexOf(ch_l) + 1, str.indexOf(ch_r))
-  }
-  return '';
-}
-
-function parseTypeValue(typestr, des) {
-  console.log('parseTypeValue', typestr, des);
-  if(typestr.toLowerCase().startsWith('string')){
-    const rangestr = getStrInParentheses(des, '{', '}')
-    const rangeArray = []
-
-    rangestr.split(',').forEach((it)=>{
-      rangeArray.push(`${it}`)
-    })
-    return ['string', rangeArray]
-  }
-  if(typestr.startsWith('bool')){
-    return ['boolean']
-  }
-  if(typestr.toLowerCase().startsWith('unsignedint') || typestr.toLowerCase().startsWith('int')){
-    const rangestr = typestr.substring(typestr.indexOf('[') + 1, typestr.indexOf(']'))
-    if(rangestr){
-      if(/[0-9]+:[0-9]+/.test(rangestr)){
-        const [l,h] = rangestr.split(':')
-        // return ['int', [myeval(l), myeval(h)]]
-        return ['number', `minMaxValiator(${myeval(l)}, ${myeval(h)})`]
-        // return ['number', validator]
-      }
-      // 5,10,20,40,180
-      if(/([0-9]+,)+[0-9]+$/.test(rangestr)){
-        // return 'array', range
-        return ['array', `[ ${rangestr.split(',')}]`]
-      }
-    }else{
-      return ['number']
-    }
-  }
-  // special cases
-  if(typestr === '80bits'){
-    return ['string']
-  }
-}
-
-function myeval(exp) {
-  if(commonfun.isString(exp))
-    return eval(exp.replace('^', '**'));
-  if(typeof(exp) === 'number'){
-    return exp;
-  }
-  return NaN;
 }
 
 const testRegexs = (arrRegex, str) =>{
