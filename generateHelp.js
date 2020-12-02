@@ -45,7 +45,7 @@ function generatePageFile(moduleName, pageInfoArray) {
       throw err;
   });
 
-  fs.readFile('./cellpage.tpl', function(err, data){
+  fs.readFile('./cellpage.tpl.js', function(err, data){
     if(err) throw err;
     commonfun.writeFile(`${filePath}/index.js`, data.toString().replace('%title%', pageInfoArray[0]).replace(/%classname%/g, className).replace(/%conftype%/g, pageInfoArray[1]))
     // console.log(data.toString().replace('%title%', pageInfoArray[0]).replace(/%classname%/g, pageInfoArray[2]).replace(/%conftype%/g, pageInfoArray[1]));

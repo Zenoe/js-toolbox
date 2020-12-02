@@ -1,6 +1,5 @@
 const fs = require('fs');
 
-const {rrm} = require('./output/rrmobj');
 
 const parseTypeValue = require('./common/parseType')
 
@@ -15,11 +14,16 @@ console.log('read file: ', filename);
 const commonfun = require('./common/commonfun');
 
 let currentClassName = '';
+let sitecell
 
 fs.readFile(filename , function(err, data) {
   if(err) throw err;
   const array = data.toString().split("\n");
-  const moduleName = array[0];  // the firt line to csv
+  const firstLineArr = array[0].split('\t');  // the first line to csv
+  const moduleName = firstLineArr[0]
+  sitecell = firstLineArr[1] || 'selectedCell'
+  const {rrm} = require(`./output/tr069csv/${moduleName}-rrmobj.js`);
+
   let importbuf = '';
   let kvbuf = '';
   let leafkey = '';
@@ -71,39 +75,33 @@ fs.readFile(filename , function(err, data) {
         if(nodeInfo){
           json['readonly'] = rrm[keyName][nameCn]['readonly'];
           const nameEn = rrm[keyName][nameCn]['en'];
-          const dotPos = nameEn.lastIndexOf('.');
+          // const dotPos = nameEn.lastIndexOf('.');
+          const dotPos = nameEn.lastIndexOf('}');
           if(dotPos > 0)
-            json['name'] = nameEn.substring(dotPos + 1);
+            json['name'] = nameEn.substring(dotPos + 2);  // skip '}.'
           else
             json['name'] = nameEn;
 
           // console.log(parseTypeValue(rrm[keyName][nameCn]['type']));
           let fieldType, fieldRule
           try{
-            [fieldType, fieldRule] = parseTypeValue(rrm[keyName][nameCn]['type'], rrm[keyName][nameCn]['des'])
+            [fieldType, fieldRule] = parseTypeValue(rrm[keyName][nameCn].type, rrm[keyName][nameCn].dataRange)
           }catch(ex){
             console.log('parseTypeValue error');
-            console.log(parseTypeValue(rrm[keyName][nameCn]['type']));
+            console.log(parseTypeValue(rrm[keyName][nameCn].dataRange));
           }
-          json['type'] = fieldType;
-          if(fieldRule !== undefined){
-            if(fieldType === 'array'){
-              json['range'] = fieldRule
-            }else if(fieldType === 'string'){
-              let rangestr = "["
-              fieldRule.forEach((it)=>{
-                rangestr += `'${it}',`
-              })
-              rangestr += "]"
-              // json['rule'] = fieldRule;
-              json['range'] = rangestr;
-            }
+          json.type = fieldType;
+          if(fieldType === 'array'){
+            json.range = fieldRule
+          }else{
+            json.validator = fieldRule
           }
-          json['node'] = rrm[keyName][nameCn]['node']
-          json['des'] = rrm[keyName][nameCn]['des']
+
+          json.node = rrm[keyName][nameCn].node
+          json.des = rrm[keyName][nameCn].des
 
           // generate mapobj
-          const node = rrm[keyName][nameCn]['node'];
+          const node = rrm[keyName][nameCn].node;
           const dataFieldKey = node.substring(node.lastIndexOf('.') + 1);
           mapObj[currentmapObjKey][dataFieldKey] = node;
           jsonLst.push(json)
@@ -118,13 +116,11 @@ fs.readFile(filename , function(err, data) {
         // jsonLst.push(lineArray[1]);
         // write map.js for last section
 
-        if(length ===4 && currentClassName.length > 0){
-          generateMapFile(moduleName, currentClassName, mapObj)
-          mapObj = {};
-          // const filePath = `${moduleName}/${currentClassName.toLowerCase()}`
-          // commonfun.objectList2File(`${filePath}/map.js`, [currentClassName, mapObj], false);
-          // mapObj = {}
-        }
+        // omit map generation
+        // if(length ===4 && currentClassName.length > 0){
+        //   generateMapFile(moduleName, currentClassName, mapObj)
+        //   mapObj = {};
+        // }
 
         jsonLst.push(line);
         currentmapObjKey = lineArray[1]
@@ -135,9 +131,9 @@ fs.readFile(filename , function(err, data) {
           if(keyMapLst.length > 0){
             keyMapLst.push(mapObj)
           }
-          if(lineArray[3].includes('tr069key')){
+          // if(lineArray[3].includes('tr069key')){
             [ keyName ] = lineArray;
-          }
+          // }
           generatePageFile(moduleName, lineArray )
           const className = lineArray[2];
           const fileName = className.toLowerCase();
@@ -152,9 +148,10 @@ fs.readFile(filename , function(err, data) {
 
   }
 
+  // omit map
   // push the last mapObj
-  keyMapLst.push(mapObj)
-  generateMapFile(moduleName, currentClassName, mapObj)
+  // keyMapLst.push(mapObj)
+  // generateMapFile(moduleName, currentClassName, mapObj)
 
   // console.log(keyMapLst);
   // console.log(jsonLst);
@@ -175,23 +172,27 @@ function generateMapFile(moduleName, className, mapObj) {
 function generatePageFile(moduleName, pageInfoArray ) {
   const className = pageInfoArray[2];
   currentClassName = className;
-  console.log('-----------', currentClassName);
+  // console.log('-----------', currentClassName);
   const fileName = className.toLowerCase();
   const filePath = `${moduleName}/${fileName}`
 
-  let template = './cellpage.tpl';
+  let template = './cellpage.tpl.js';
   if(pageInfoArray[3].includes('form')){
-   template = './cellpageform.tpl' ;
+   template = './cellpageform.tpl.js' ;
   }
 
   fs.readFile(template, function(err, data){
     if(err) throw err;
-    commonfun.writeFile(`${filePath}/index.js`, data.toString().replace('%title%', pageInfoArray[0]).replace(/%classname%/g, className).replace(/%conftype%/g, pageInfoArray[1]))
+    commonfun.writeFile(`${filePath}/index.js`, data.toString().replace('%title%', pageInfoArray[0]).replace(/%classname%/g, className).replace(/%conftype%/g, pageInfoArray[1]).replace(/%sitecell%/g,sitecell))
     // console.log(data.toString().replace('%title%', pageInfoArray[0]).replace(/%classname%/g, pageInfoArray[2]).replace(/%conftype%/g, pageInfoArray[1]));
   })
 
 }
 
+
+/*
+ * add instance property
+ */
 function addIProperty(obj){
   const retObj = [];
   // if(objLst.length > 0)
@@ -199,10 +200,6 @@ function addIProperty(obj){
     // const node = objLst[2].node;
     const node = obj.node;
     let dataName = node.substring(node.indexOf('FAPService.{i}.') + 'FAPService.{i}.'.length)
-
-  // if(dataName.indexOf('.{i}') < 0){
-  //   return objLst
-  // }
 
   const keyIPos = dataName.search(/\w+\.(?=\{i}+)/);
   if(keyIPos === -1){
@@ -232,7 +229,7 @@ function addIProperty(obj){
         'name': prop,
         'type': 'number',
         'node': node,
-        'des': '',
+        'des': 'I',
       })
     }
   })
@@ -257,7 +254,7 @@ function datafieldprop(moduleName, objLst){
   let filePath = '';
   const dataVars = [];
 
-  console.log('datafieldprop:', moduleName, objLst);
+  // console.log('datafieldprop:', moduleName, objLst);
   // indicates if a new array variable start
   let newModuleStart = false;
   let newSectionStart = false;
@@ -309,7 +306,7 @@ function datafieldprop(moduleName, objLst){
   commonfun.appendFile(`${filePath}/data-field-prop.node.js`, moduleExport )
 
   strbuf += `\nexport {${dataVars.toString()}}`
-  const importStatement = "import {  minMaxValiator } from '@/utils/validator'\n\n"
+  const importStatement = "import {  minMaxValiator, ipValidator, stringSizeValidator } from '@/utils/validator'\n\n"
 
   commonfun.writeFile(`${filePath}/data-field-prop.js`, importStatement)
   commonfun.appendFile(`${filePath}/data-field-prop.js`, strbuf)
@@ -318,7 +315,7 @@ function datafieldprop(moduleName, objLst){
 
 function object2str(obj, indentLevel=2) {
   let indent='';
-  const notStringValueAttributes=['rule', 'readonly', 'range']
+  const notStringValueAttributes=['rule', 'readonly', 'range', 'validator']
 
   for(let i = 0; i < indentLevel; i+=1){
     indent += '\t'

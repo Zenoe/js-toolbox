@@ -85,11 +85,10 @@ module.exports = {
     });
   },
 
+  /* exclude type of array */
   isJustAObj: function(obj){
     return !!obj && obj === Object(obj) && Object.prototype.toString.call(obj) !== '[object Array]'
   },
-
-
 
   countLeadingSpc : function (str){
     return /^ .*/.test(str) ? str.search(/\S/) : 0

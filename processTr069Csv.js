@@ -7,10 +7,11 @@ if(filename)
 
 const commonfun = require('./common/commonfun');
 
-fs.readFile(filename || './csv/rrm.csv', function(err, data) {
+fs.readFile(filename , function(err, data) {
   if(err) throw err;
   var array = data.toString().split("\n");
 
+  const moduleName = filename.substring(0, filename.lastIndexOf('.'))
   let key;
   const paramObj = {};
   array.forEach((it, idx)=>{
@@ -39,7 +40,7 @@ fs.readFile(filename || './csv/rrm.csv', function(err, data) {
 
   // console.log(paramObj);
   const paramObjLst = ['rrm', paramObj]
-  commonfun.objectList2File(`output/rrmobj.js`, paramObjLst, false);
+  commonfun.objectList2File(`output/${moduleName}-rrmobj.js`, paramObjLst, false);
 });
 
 function line2Obj(lineArray) {
@@ -52,6 +53,7 @@ function line2Obj(lineArray) {
       readonly: lineArray[3] === 'R',
       type: lineArray[4].trim(),
       des: lineArray[5] || '',
+      dataRange: lineArray[6] || '',
     }]
   }
   console.log('error line', lineArray, lineArray.length);

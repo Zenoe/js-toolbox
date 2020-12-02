@@ -41,5 +41,6 @@ fs.readFile(filename, function(err, data) {
     }
   })
 
-  commonfun.objectList2File(`output/treedata/${moduleName}-tree-data.js`, treeDataArray)
+  // commonfun.objectList2File(`output/treedata/${moduleName}-tree-data.js`, treeDataArray)
+  commonfun.objectList2File(`${moduleName}/${moduleName}-tree-data.js`, treeDataArray)
 });

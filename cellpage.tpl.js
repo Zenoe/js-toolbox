@@ -21,6 +21,7 @@ class %classname% extends React.PureComponent{
     super(props)
     this.state={
       loading: false,
+      adding: false,
       dataSource: [],
     }
   }
@@ -35,18 +36,21 @@ class %classname% extends React.PureComponent{
 
   requestData = ()=>{
     return new Promise((resolve, reject)=>{
-      const {selectedCell} = this.props
-      if( ! selectedCell ){
-        reject(new Error('no selectedCell'))
+      const {%sitecell%} = this.props
+      if( ! %sitecell% ){
+        reject(new Error('no %sitecell%'))
       }
       const titles = mainProperty.filter((it)=>(isString(it)))
       const headDataInfos = mainProperty.filter((it)=>(!isString(it)))
       assert(titles.length === headDataInfos.length)
 
-      const oneofNode = headDataInfos[0][0].node.replace('{i}', selectedCell.fapServiceNum);
+      let oneofNode = headDataInfos[0][0].node
+      if(oneofNode.indexOf('FAPService.{i}') > 0){
+        oneofNode = headDataInfos[0][0].node.replace('{i}', %sitecell%.fapServiceNum);
+      }
       const params = {
-        'sn': selectedCell.serialNumber,
-        'names': [ oneofNode.substring(0,oneofNode.indexOf('.{i}')) ||
+        'sn': %sitecell%.serialNumber,
+        'names': [ oneofNode.substring(0,oneofNode.indexOf('.{i}') + 1) ||
                    oneofNode.substring(0,oneofNode.lastIndexOf('.')) ]
       }
 
@@ -60,7 +64,6 @@ class %classname% extends React.PureComponent{
       }).then(
         res => {
           const values = res.data
-          // console.log(transformParams()(values, keyMapObj, Object.keys(values)));
           const dataSource = processResValues(values, mainProperty);
           this.setState({
             dataSource,
@@ -115,8 +118,8 @@ class %classname% extends React.PureComponent{
     // const dataSourceIdx = tableIndex;
     const rowkey = newData[recordIdx].key;
 
-    const {selectedCell} = this.props
-    if(selectedCell === undefined){
+    const {%sitecell%} = this.props
+    if(%sitecell% === undefined){
       return;
     }
 
@@ -147,83 +150,117 @@ class %classname% extends React.PureComponent{
 
   }
 
-  handleResponse = (res)=>{
-    const [isSuccess, checkMsg] = checkRes(res.data);
+  handleResponse = (res, op)=>{
+    // op: 0==> add
+    // op: 1==> del
+    // op: 2==> set
+    // old response from server (code by chf)
+    let [isSuccess, checkMsg] = checkRes(res.data);
+
+    // new response (cody by srm)
+    if(isSuccess === undefined){
+      isSuccess = res.success
+      checkMsg = res.message
+    }
+
+    let msg = '删除'
+    if(op === 0){
+      this.setState({
+        adding: false,
+      })
+      msg = '新增'
+    }
+    if(op ===2 ){
+      this.setState({
+        loading: false,
+      })
+      msg = '设置'
+    }
+
     if(isSuccess){
       this.requestData().then(()=>{
-        message.success('配置成功')
+        message.success(`${msg}成功`)
         // this.cachedTblRecordIdxObj= {};
         this.cachedTr069KeyObj = {};
       }).catch((reject)=>{
-        message.warning(请求数据失败)
+        message.warning(`${msg}失败`)
         console.log(reject);
       })
     }else{
-      message.warning(checkMsg)
+      console.log(checkMsg);
+      if(isString(checkMsg)) message.warning(checkMsg)
+      else message.warning('服务器返回错误')
     }
   }
 
   delInstance = (recordIndex, tableIndex)=>{
-    const {selectedCell } = this.props
+    const {%sitecell% } = this.props
     const {dataSource} = this.state;
     const tableData = dataSource[tableIndex]
-    const { key } = tableData[0]
+    const { key } = tableData[recordIndex]
 
     request(`${API_URL}/conf-service/inner/deleteInstance`,{
       method: 'POST',
-      body: [ {'sn': selectedCell.serialNumber, instanceName: key } ]
-    }).then(res=>this.handleResponse(res)).catch(err => {
+      body:  {'sn': %sitecell%.serialNumber, instanceName: `${key}.` }
+    }).then(res=>this.handleResponse(res, 1)).catch(err => {
       console.log(err);
     })
   }
 
   addInstance = (instanceValues, node)=>{
-    const {selectedCell} = this.props
-    let instanceName = node
+    const {%sitecell%} = this.props
+    let keyComponents = node.split('.')
+    if(keyComponents.length <= 2){
+      console.log('not multiple instances');
+      return
+    }
+    keyComponents = keyComponents.slice(0, keyComponents.length - 1)
+    let instanceName = `${keyComponents.join('.')}.`
     // Device.FAPService.1.CellConfig..MeasObjectEUTRA.x.CellAdd.y
     // ====>
     // Device.FAPService.1.CellConfig..MeasObjectEUTRA.a.CellAdd.b
     Object.keys(instanceValues).forEach((prop)=>{
       instanceName = instanceName.replace(new RegExp(`${prop}\\.\\d+`), `${prop}.${instanceValues[prop]}`)
     })
-    request(`${API_URL}/conf-service/inner/addInstance`,{
-      method: 'POST',
-      body: [ {'sn': selectedCell.serialNumber, instanceName } ]
-    }).then(res=>this.handleResponse(res)).catch(err => {
-      console.log(err);
+    this.setState({
+      adding: true,
+    }, ()=>{
+      request(`${API_URL}/conf-service/inner/addInstance`,{
+        method: 'POST',
+        body:  {'sn': %sitecell%.serialNumber, instanceName }
+      }).then(res=>this.handleResponse(res, 0)).catch(err => {
+        this.setState({
+          adding: false,
+        })
+        console.log(err);
+      })
     })
+
   }
 
   saveAll = ()=>{
-    const {selectedCell} = this.props
+    const {%sitecell%} = this.props
 
     const tr069Params = {values:{
       ...this.cachedTr069KeyObj
     }}
 
-    request(`${API_URL}/conf-service/inner/setValues`,{
-      method: 'POST',
-      body: [ {'sn': selectedCell.serialNumber, ...tr069Params} ]
-    }).then(res => {
-      const [isSuccess, checkMsg] = checkRes(res.data);
-      if(isSuccess){
-        this.requestData().then(()=>{
-          message.success('配置成功')
-          // this.cachedTblRecordIdxObj= {};
-          this.cachedTr069KeyObj = {};
-        }).catch((reject)=>{
-          message.warning(reject.message || reject)
-        })
-      }else{
-        message.warning(checkMsg)
-      }
-    }).catch(err => {
-      console.log(err);
+    this.setState({
+      loading: true,
+    }, ()=>{
+      request(`${API_URL}/conf-service/inner/setValues`,{
+        method: 'POST',
+        body:  {'sn': %sitecell%.serialNumber, ...tr069Params}
+      }).then(res => {
+        this.handleResponse(res, 2)
+      }).catch(err => {
+        console.log(err);
+      })
     })
   }
 
   renderComps(){
-    const {dataSource} = this.state;
+    const {dataSource, adding} = this.state;
     const readonlyTable = false;
     const titles = mainProperty.filter((it)=>(isString(it)))
     const headDataInfos = mainProperty.filter((it)=>(!isString(it)))
@@ -238,6 +275,7 @@ class %classname% extends React.PureComponent{
             columns={this.generateHeader(headDataInfo)}
             readonly={readonlyTable}
             onChange={this.onChange}
+            adding={adding}
             addop
             deleteAble
             handleAddInstance={this.addInstance}

@@ -78,7 +78,7 @@ fs.readFile(filename , function(err, data) {
           // console.log(parseTypeValue(rrm[keyName][nameCn]['type']));
           let fieldType, fieldRule
           try{
-            [fieldType, fieldRule] = parseTypeValue(rrm[keyName][nameCn]['type'], rrm[keyName][nameCn]['des'])
+            [fieldType, fieldRule] = parseTypeValue(rrm[keyName][nameCn]['type'], rrm[keyName][nameCn].dataRange)
           }catch(ex){
             console.log('parseTypeValue error');
             console.log(parseTypeValue(rrm[keyName][nameCn]['type']));
@@ -179,9 +179,9 @@ function generatePageFile(moduleName, pageInfoArray ) {
   const fileName = className.toLowerCase();
   const filePath = `${moduleName}/${fileName}`
 
-  let template = './cellpage.tpl';
+  let template = './cellpage.tpl.js';
   if(pageInfoArray[3].includes('form')){
-   template = './cellpageform.tpl' ;
+   template = './cellpageform.tpl.js' ;
   }
 
   fs.readFile(template, function(err, data){

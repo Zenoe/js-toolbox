@@ -24,7 +24,8 @@ class %classname% extends React.PureComponent{
   componentDidMount(){
     this.requestData().catch(
       reject=>{
-        message.warning(reject.message || reject)
+        console.log(reject.message || reject);
+        message.warning('请求数据失败')
       }
     )
   }

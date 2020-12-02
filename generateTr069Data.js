@@ -78,12 +78,23 @@ const readProp = (filePath)=>{
         return kvArr
         // return `${keystr}:"${valuestr}"`
       })
-      console.log(commonfun.flatten(tr069kv));
+      // console.log(commonfun.flatten(tr069kv));
+      outputInKV(commonfun.flatten(tr069kv))
     }
   })
 }
 
-const propFiles = getPropFiles('qos')
+const outputInKV = (arr) =>{
+  arr.forEach(it=>{
+    const kv = it.split(':')
+    console.log(`${kv[0]}:${kv[1]},`);
+  })
+}
+
+const myArgs = process.argv.slice(2);
+const basedir = myArgs[0]
+
+const propFiles = getPropFiles(basedir)
 
 propFiles.forEach((filePath)=>{
   readProp(filePath)
