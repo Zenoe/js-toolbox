@@ -43,6 +43,21 @@ function parseStringType(strType){
 }
 
 /*
+ * dataRange : (x,y)
+ */
+function parseDataRange(dataRange){
+  let rangestr = getStrInParentheses(dataRange)
+  if(rangestr.length === 0){
+    rangestr = dataRange
+  }
+  console.log('number-------', rangestr, dataRange);
+  const [min, max] = rangestr.split(',')
+  if(min !== undefined && max !== undefined)
+    return ['number', `minMaxValiator(${min}, ${max})`]
+  return ['number']
+}
+
+/*
  * return:
  * array, range
  * string, validator
@@ -94,10 +109,15 @@ function parseTypeValue(typestr, dataRange) {
     const rangestr = typestr.substring(typestr.indexOf('[') + 1, typestr.indexOf(']'))
     if(rangestr){
       if(/[0-9]+:[0-9]+/.test(rangestr)){
-        const [l,h] = rangestr.split(':')
-        // return ['int', [myeval(l), myeval(h)]]
-        return ['number', `minMaxValiator(${myeval(l)}, ${myeval(h)})`]
-        // return ['number', validator]
+        const hlArr = rangestr.split(':')
+        if(hlArr.length === 2){
+          const [l,h] = hlArr
+          // return ['int', [myeval(l), myeval(h)]]
+          return ['number', `minMaxValiator(${myeval(l)}, ${myeval(h)})`]
+          // return ['number', validator]
+        }else{
+          parseDataRange(dataRange)
+        }
       }
       // 5,10,20,40,180
       if(/([0-9]+,)+[0-9]+$/.test(rangestr)){
@@ -105,22 +125,14 @@ function parseTypeValue(typestr, dataRange) {
         return ['array', `[ ${rangestr.split(',')}]`]
       }
     }else{
-      let rangestr = getStrInParentheses(dataRange)
-      if(rangestr.length === 0){
-        rangestr = dataRange
-      }
-      console.log('number-------', rangestr, dataRange);
-      const [min, max] = rangestr.split(',')
-      if(min !== undefined && max !== undefined)
-        return ['number', `minMaxValiator(${min}, ${max})`]
-      return ['number']
+      return parseDataRange(dataRange)
     }
   }
   // special cases
   if(typestr === '80bits'){
     return ['string']
   }
-  return null
+  return []
 }
 
 module.exports=parseTypeValue

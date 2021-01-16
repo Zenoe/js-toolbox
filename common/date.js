@@ -3,7 +3,7 @@
 // ==> "15-Oct-2020"
 // moment(new Date()).format('YYYY-MM-DD HH:m:s');
 
-import moment from 'moment'
+const moment = require('moment')
 
 function date2Formatted(d=new Date(), pad=true){
   if(pad){

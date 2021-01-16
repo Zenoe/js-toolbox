@@ -1,13 +1,12 @@
 import React from 'react';
-import {Button, Spin, message,Switch} from 'antd'
+import {Button, Spin, message} from 'antd'
 import {SiteConfigTitle} from '@/components/CustomizeTitle'
 import request from '@/utils/oauthFetch';
-import { checkRes } from '@/utils/configure'
-import {assert, isString} from '@/utils/utils'
-import {processResValues} from '@/utils/tr069parse'
+import {generateHeader, attatchBindFieldValue, requestData, checkRes, getTr069Prefix} from '@/utils/configure'
+import {isString} from '@/utils/utils'
 
 import EditableFormTable from '@/pages/configure/Table/EditableTable.tsx';
-import { diffObject } from '@/pages/configure/util';
+import { justDiffObject } from '@/pages/configure/util';
 
 import {%conftype% as mainProperty} from './data-field-prop'
 
@@ -27,109 +26,49 @@ class %classname% extends React.PureComponent{
   }
 
   componentDidMount(){
-    this.requestData().catch(
+    requestData(this, mainProperty).catch(
       reject=>{
         message.warning(reject.message || reject)
       }
     )
   }
 
-  requestData = ()=>{
-    return new Promise((resolve, reject)=>{
-      const {%sitecell%} = this.props
-      if( ! %sitecell% ){
-        reject(new Error('no %sitecell%'))
-      }
-      const titles = mainProperty.filter((it)=>(isString(it)))
-      const headDataInfos = mainProperty.filter((it)=>(!isString(it)))
-      assert(titles.length === headDataInfos.length)
-
-      let oneofNode = headDataInfos[0][0].node
-      if(oneofNode.indexOf('FAPService.{i}') > 0){
-        oneofNode = headDataInfos[0][0].node.replace('{i}', %sitecell%.fapServiceNum);
-      }
-      const params = {
-        'sn': %sitecell%.serialNumber,
-        'names': [ oneofNode.substring(0,oneofNode.indexOf('.{i}') + 1) ||
-                   oneofNode.substring(0,oneofNode.lastIndexOf('.')) ]
-      }
-
-      this.setState({
-        loading: true,
-      })
-
-      request(`${API_URL}/conf-service/inner/getValues`,{
-        method: 'POST',
-        body: params,
-      }).then(
-        res => {
-          const values = res.data
-          const dataSource = processResValues(values, mainProperty);
-          this.setState({
-            dataSource,
-            loading: false,
-          }, resolve())
-        }
-      ).catch(requestReject=>{
-        this.setState({
-          loading: false,
-        })
-        reject('请求数据失败')
-        console.log(requestReject);
-      })
-    })
-  }
-
-  generateHeader=(headDataInfo)=>{
-    const headers=[];
-    headDataInfo.forEach((item)=>{
-      const {text, name, type, readonly, ...rest} = item
-      const headerCol = {
-        title:text,
-        dataIndex: name,
-        key: name,
-        align: 'center',
-        dataType: type,
-        allowNull: true,
-        editable: !readonly,
-        ...rest,
-      }
-
-      if(headerCol.dataType === "boolean"){
-        headerCol.render=(value)=>(
-          <Switch
-            checked={value}
-            data={item.paramStandardName}
-          />)
-      }
-
-      headers.push(headerCol);
-    })
-
-    return headers;
-  }
-
-  preSubmit = (newData, recordIdx, evalFuncs, oldData, tableIndex)=>{
+  preSubmit = (newData, recordIdx, evalFuncs, oldData, tableIndex, columns)=>{
     // const param = newData[recordIdx];
     // if(evalFuncs){
     //  // evaluate values according to evalfuncs
     // }
-    const diffRes = diffObject(oldData[recordIdx], newData[recordIdx]);
-    // const dataSourceIdx = tableIndex;
-    const rowkey = newData[recordIdx].key;
-
+    let diffRes = justDiffObject(newData[recordIdx], oldData[recordIdx], false);
     const {%sitecell%} = this.props
+    const { tr069KeyData } = this.state
+
     if(%sitecell% === undefined){
       return;
     }
 
-    const tr069Prefix = rowkey;
+    diffRes = attatchBindFieldValue(diffRes, columns, oldData[recordIdx])
 
     const cachedTblRecordIdxObj = {};
 
     Object.keys(diffRes).forEach((it)=>{
+      const tr069Prefix = getTr069Prefix(tr069KeyData[tableIndex], it, recordIdx);
       this.cachedTr069KeyObj[`${tr069Prefix}.${it}`] = diffRes[it]
       cachedTblRecordIdxObj[it] = diffRes[it]
+    })
+
+    const columnMap = new Map();
+    // find bounded filed values if any, push them into cachedTblRecordIdxObj
+    columns.forEach(col=>{
+      columnMap.set(col.key, col)
+    })
+
+    Object.keys(cachedTblRecordIdxObj).forEach(it=>{
+      const boundFields = columnMap.get(it).bound
+      if(boundFields && Array.isArray(boundFields)){
+        boundFields.forEach(field=>{
+          cachedTblRecordIdxObj[field] = newData[recordIdx][field]
+        })
+      }
     })
 
     const {dataSource} = this.state;
@@ -178,7 +117,7 @@ class %classname% extends React.PureComponent{
     }
 
     if(isSuccess){
-      this.requestData().then(()=>{
+      requestData(this, mainProperty).then(()=>{
         message.success(`${msg}成功`)
         // this.cachedTblRecordIdxObj= {};
         this.cachedTr069KeyObj = {};
@@ -209,33 +148,47 @@ class %classname% extends React.PureComponent{
 
   addInstance = (instanceValues, node)=>{
     const {%sitecell%} = this.props
-    let keyComponents = node.split('.')
-    if(keyComponents.length <= 2){
-      console.log('not multiple instances');
-      return
-    }
-    keyComponents = keyComponents.slice(0, keyComponents.length - 1)
-    let instanceName = `${keyComponents.join('.')}.`
-    // Device.FAPService.1.CellConfig..MeasObjectEUTRA.x.CellAdd.y
-    // ====>
-    // Device.FAPService.1.CellConfig..MeasObjectEUTRA.a.CellAdd.b
-    Object.keys(instanceValues).forEach((prop)=>{
-      instanceName = instanceName.replace(new RegExp(`${prop}\\.\\d+`), `${prop}.${instanceValues[prop]}`)
-    })
-    this.setState({
-      adding: true,
-    }, ()=>{
-      request(`${API_URL}/conf-service/inner/addInstance`,{
-        method: 'POST',
-        body:  {'sn': %sitecell%.serialNumber, instanceName }
-      }).then(res=>this.handleResponse(res, 0)).catch(err => {
-        this.setState({
-          adding: false,
-        })
-        console.log(err);
-      })
-    })
+    let instanceName = node
 
+    if(instanceValues === null){
+      // not multiple instance node
+      this.setState({
+        loading: true,
+      }, ()=>{
+        request(`${API_URL}/conf-service/inner/addInstance`,{
+          method: 'POST',
+          body:  {'sn': %sitecell%.serialNumber, instanceName }
+        }).then(res=>this.handleResponse(res, 0)).catch(err => {
+          this.setState({
+            loading: false,
+          })
+          console.log(err);
+        })
+      })
+    }else{
+      let keyComponents = node.split('.')
+      keyComponents = keyComponents.slice(0, keyComponents.length - 1)
+      instanceName = `${keyComponents.join('.')}.`
+      // Device.xxx.1.CellConfig..MeasObjectEUTRA.x.CellAdd.y
+      // ====>
+      // Device.xxx.1.CellConfig..MeasObjectEUTRA.a.CellAdd.b
+      Object.keys(instanceValues).forEach((prop)=>{
+        instanceName = instanceName.replace(new RegExp(`${prop}\\.\\d+`), `${prop}.${instanceValues[prop]}`)
+      })
+      this.setState({
+        adding: true,
+      }, ()=>{
+        request(`${API_URL}/conf-service/inner/addInstance`,{
+          method: 'POST',
+          body:  {'sn': %sitecell%.serialNumber, instanceName }
+        }).then(res=>this.handleResponse(res, 0)).catch(err => {
+          this.setState({
+            adding: false,
+          })
+          console.log(err);
+        })
+      })
+    }
   }
 
   saveAll = ()=>{
@@ -272,7 +225,7 @@ class %classname% extends React.PureComponent{
             tableIndex={idx}
             title={titles[idx]}
             handleSaveEdit={this.preSubmit}
-            columns={this.generateHeader(headDataInfo)}
+            columns={generateHeader(headDataInfo)}
             readonly={readonlyTable}
             onChange={this.onChange}
             adding={adding}

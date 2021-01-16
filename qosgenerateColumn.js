@@ -22,6 +22,7 @@ fs.readFile(filename , function(err, data) {
   const firstLineArr = array[0].split('\t');  // the first line to csv
   const moduleName = firstLineArr[0]
   sitecell = firstLineArr[1] || 'selectedCell'
+  console.log('----------selectedCell', sitecell);
   const {rrm} = require(`./output/tr069csv/${moduleName}-rrmobj.js`);
 
   let importbuf = '';
@@ -37,14 +38,13 @@ fs.readFile(filename , function(err, data) {
   array.slice(1).forEach(rawline=>{
     const line = rawline.trim();
     if(!line.startsWith('#') && line.length !== 0){
-
-      // start with digit
+      // start with digit: tree text
       if(/(#|[0-9])/.test(line[0]) && line.split('\t').length < 3){
-        // extract tree hierarchy data
         if(jsonLst.length > 0){
           datafieldprop(moduleName, jsonLst)
           jsonLst = []
         }
+        // extract tree hierarchy data
         const lev = parseInt(line[0], 10);
         for(let k = lev-1; k>0; k -=1){
           treeHierarchyData += SP4;
@@ -53,9 +53,6 @@ fs.readFile(filename , function(err, data) {
         [ leafkey ] = la;
         treeHierarchyData += leafkey;
         treeHierarchyData += '\n';
-        // if(la.length > 1){
-        //   jsonLst.push(la[1]);
-        // }
         return;
       } // starts with digit
 
@@ -87,8 +84,7 @@ fs.readFile(filename , function(err, data) {
           try{
             [fieldType, fieldRule] = parseTypeValue(rrm[keyName][nameCn].type, rrm[keyName][nameCn].dataRange)
           }catch(ex){
-            console.log('parseTypeValue error');
-            console.log(parseTypeValue(rrm[keyName][nameCn].dataRange));
+            console.log('parseTypeValue', ex.message, keyName, nameCn);
           }
           json.type = fieldType;
           if(fieldType === 'array'){
